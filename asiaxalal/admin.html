@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Админ-панель</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1E2A47; --ivory:#FAF3E7; --saffron:#D8A72E;
+    --brick:#A13D2C; --charcoal:#2B2118; --line:rgba(30,42,71,0.14); --card:#fff;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{ font-family:'Manrope', sans-serif; background:var(--ivory); color:var(--charcoal); min-height:100vh; }
+  input, select, textarea{
+    width:100%; border:1px solid var(--line); border-radius:10px; padding:10px 12px;
+    font-size:14px; margin-bottom:10px; font-family:inherit;
+  }
+  input[type=color]{ padding:4px; height:44px; cursor:pointer; }
+
+  /* ---------- LOGIN ---------- */
+  #login-screen{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
+  .login-box{ background:var(--card); border-radius:16px; padding:32px 28px; width:100%; max-width:340px; border:1px solid var(--line); text-align:center; }
+  .login-box h1{ font-family:'Cormorant Garamond', serif; font-size:24px; color:var(--ink); margin-bottom:6px; }
+  .login-box p{ font-size:13px; color:#8a7a68; margin-bottom:18px; }
+  .remember-row{ display:flex; align-items:center; gap:8px; margin:-4px 0 14px; font-size:12px; color:#5c4d3e; }
+  .remember-row input{ width:auto; margin:0; }
+  .btn{ width:100%; background:var(--ink); color:var(--ivory); border:none; padding:13px; border-radius:10px; font-weight:800; font-size:13px; text-transform:uppercase; letter-spacing:0.03em; cursor:pointer; }
+  .error-msg{ color:var(--brick); font-size:12px; margin-top:10px; display:none; }
+
+  /* ---------- APP SHELL ---------- */
+  #app{ display:none; }
+  header{
+    background:var(--ink); color:var(--ivory); padding:12px 16px;
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
+    position:sticky; top:0; z-index:30;
+  }
+  header .title{ font-family:'Cormorant Garamond', serif; font-size:20px; font-weight:700; }
+  .icon-btn{
+    background:rgba(250,243,231,0.12); border:1px solid rgba(250,243,231,0.3); color:var(--ivory);
+    padding:8px 12px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer;
+  }
+  .icon-btn.active{ background:var(--saffron); color:var(--ink); border-color:var(--saffron); }
+  .header-controls{ display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+  .shift-pill{ font-size:11px; font-weight:800; padding:6px 12px; border-radius:999px; background:rgba(250,243,231,0.12); }
+  .shift-pill.on{ background:#2fae5c; color:#fff; }
+
+  main{ max-width:1400px; margin:0 auto; padding:14px; }
+  .workspace{ display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:start; }
+  .workspace.layout-order .admin-pane{ display:none; }
+  .workspace.layout-order .order-pane{ grid-column:1/-1; }
+  .workspace.layout-admin .order-pane{ display:none; }
+  .workspace.layout-admin .admin-pane{ grid-column:1/-1; }
+  @media (max-width:900px){ .workspace{ grid-template-columns:1fr !important; } }
+
+  .pane{ background:var(--card); border:1px solid var(--line); border-radius:16px; padding:14px; min-height:200px; }
+  .pane-title{ font-family:'Cormorant Garamond', serif; font-size:19px; color:var(--ink); margin-bottom:10px; }
+
+  /* ---------- ORDER PANE (POS) ---------- */
+  .pos-layout{ display:grid; grid-template-columns:1.3fr 1fr; gap:12px; }
+  @media (max-width:600px){ .pos-layout{ grid-template-columns:1fr; } }
+  .filters{ display:flex; gap:6px; overflow-x:auto; padding-bottom:6px; margin-bottom:8px; }
+  .filter-pill{ flex:none; background:#f2ede2; border:1px solid var(--line); color:var(--charcoal); padding:6px 12px; border-radius:999px; font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap; }
+  .filter-pill.active{ background:var(--brick); border-color:var(--brick); color:#fff; }
+  .pos-dish-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; max-height:60vh; overflow-y:auto; }
+  .pos-dish{ background:#fff; border:1px solid var(--line); border-radius:10px; padding:8px; cursor:pointer; text-align:left; }
+  .pos-dish:active{ background:#fff7ea; }
+  .pos-dish .pd-name{ font-size:12px; font-weight:800; color:var(--ink); }
+  .pos-dish .pd-price{ font-size:12px; font-weight:800; color:var(--brick); margin-top:4px; }
+
+  .pos-cart-box{ background:#fdfaf4; border:1px solid var(--line); border-radius:10px; padding:10px; }
+  .pos-cart-item{ display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px dashed var(--line); font-size:12px; }
+  .pos-cart-item .qty-stepper{ display:flex; align-items:center; gap:6px; }
+  .pos-cart-item .qty-stepper button{ background:var(--ink); color:var(--ivory); border:none; width:20px; height:20px; border-radius:50%; font-size:12px; cursor:pointer; }
+  .pos-empty{ text-align:center; color:#a08d76; font-size:12px; padding:20px 0; }
+  .pos-total-row{ display:flex; justify-content:space-between; font-weight:800; font-size:15px; margin:8px 0; color:var(--ink); }
+  .pay-options{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; }
+  .pay-pill{ background:#fff; border:1px solid var(--line); border-radius:8px; padding:6px 10px; font-size:11px; font-weight:700; cursor:pointer; }
+  .pay-pill.active{ background:var(--ink); border-color:var(--ink); color:var(--ivory); }
+  .submit-btn{ width:100%; background:var(--brick); color:#fff; border:none; padding:12px; border-radius:10px; font-weight:800; font-size:13px; cursor:pointer; text-transform:uppercase; }
+  .receipt-box{ background:#fff; border:1px dashed var(--line); border-radius:10px; padding:12px; font-size:13px; }
+  .receipt-box .r-item{ display:flex; justify-content:space-between; padding:3px 0; }
+  .receipt-total{ font-weight:800; font-size:15px; margin:8px 0; text-align:right; }
+  .paid-btn{ width:100%; background:#2fae5c; color:#fff; border:none; padding:12px; border-radius:10px; font-weight:800; font-size:13px; cursor:pointer; margin-bottom:8px; }
+  .ghost-btn{ width:100%; background:none; border:1px solid var(--line); padding:10px; border-radius:10px; font-weight:700; font-size:12px; cursor:pointer; margin-bottom:6px; }
+
+  /* ---------- ADMIN TABS ---------- */
+  .subtabs{ display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap; }
+  .subtab-btn{ background:#f2ede2; border:1px solid var(--line); color:var(--charcoal); padding:7px 14px; border-radius:999px; font-size:12px; font-weight:700; cursor:pointer; position:relative; }
+  .subtab-btn.active{ background:var(--ink); color:var(--ivory); border-color:var(--ink); }
+  .subtab-btn .badge{ position:absolute; top:-6px; right:-6px; background:var(--brick); color:#fff; border-radius:999px; font-size:9px; padding:1px 5px; font-weight:800; }
+
+  .order-card{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:10px; }
+  .order-card.is-new{ box-shadow:0 0 0 3px var(--saffron); }
+  .order-top{ display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; margin-bottom:6px; }
+  .order-top .name{ font-weight:800; font-size:13px; color:var(--ink); }
+  .order-top .time{ font-size:10px; color:#a08d76; }
+  .order-meta{ font-size:12px; color:#5c4d3e; margin-bottom:6px; }
+  .order-items div{ display:flex; justify-content:space-between; font-size:12px; padding:2px 0; border-bottom:1px dashed var(--line); }
+  .order-total{ font-weight:800; color:var(--brick); font-size:13px; margin:6px 0; }
+  .status-row{ display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+  .status-row select{ margin:0; width:auto; font-size:11px; padding:6px 8px; }
+  .pay-badge{ font-size:10px; font-weight:800; padding:3px 8px; border-radius:999px; }
+  .pay-badge.paid{ background:#e4f7ea; color:#1f7a3d; }
+  .pay-badge.pending{ background:#fdeeea; color:var(--brick); }
+  .mini-btn{ background:none; border:1px solid var(--line); border-radius:8px; padding:5px 9px; font-size:10px; font-weight:700; cursor:pointer; }
+  .mini-btn.danger{ color:var(--brick); border-color:var(--brick); }
+  .empty-state{ text-align:center; padding:40px 20px; color:#a08d76; font-size:13px; }
+
+  .dish-row, .settings-card{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:10px; display:grid; grid-template-columns:1fr 1fr; gap:8px 12px; }
+  @media (max-width:600px){ .dish-row, .settings-card{ grid-template-columns:1fr; } }
+  .field label{ font-size:10px; font-weight:700; color:#8a7a68; text-transform:uppercase; display:block; margin-bottom:3px; }
+  .field input, .field select, .field textarea{ margin-bottom:0; }
+  .row-actions{ grid-column:1/-1; display:flex; gap:8px; flex-wrap:wrap; margin-top:4px; }
+  .save-btn{ background:var(--ink); color:var(--ivory); border:none; padding:8px 16px; border-radius:8px; font-weight:700; font-size:11px; cursor:pointer; }
+  .delete-btn{ background:none; color:var(--brick); border:1px solid var(--brick); padding:8px 16px; border-radius:8px; font-weight:700; font-size:11px; cursor:pointer; }
+  .add-btn{ display:block; width:100%; background:var(--saffron); color:var(--ink); border:none; padding:12px; border-radius:10px; font-weight:800; font-size:12px; cursor:pointer; text-transform:uppercase; margin-top:4px; }
+  .img-mode-tabs{ display:flex; gap:6px; margin-bottom:6px; }
+  .img-mode-tabs button{ flex:1; background:#f2ede2; border:1px solid var(--line); border-radius:8px; padding:6px; font-size:10px; font-weight:700; cursor:pointer; }
+  .img-mode-tabs button.active{ background:var(--ink); color:var(--ivory); border-color:var(--ink); }
+  .img-preview{ width:50px; height:50px; border-radius:8px; object-fit:cover; margin-top:6px; border:1px solid var(--line); }
+  .upload-status{ font-size:10px; color:#8a7a68; margin-top:4px; }
+  .color-field{ display:flex; align-items:center; gap:8px; }
+  .color-field input[type=color]{ width:50px; flex:none; margin-bottom:0; }
+  .color-field span{ font-size:11px; color:#8a7a68; }
+  .list-row{ display:flex; gap:8px; align-items:center; background:#fff; border:1px solid var(--line); border-radius:10px; padding:8px 10px; margin-bottom:6px; flex-wrap:wrap; }
+  .list-row input{ margin-bottom:0; flex:1; min-width:110px; }
+
+  /* ---------- SMENA / CHEK ---------- */
+  .shift-box{ text-align:center; padding:20px; }
+  .shift-box .big-btn{ background:var(--ink); color:var(--ivory); border:none; padding:18px 30px; border-radius:14px; font-weight:800; font-size:15px; cursor:pointer; text-transform:uppercase; }
+  .shift-box .big-btn.end{ background:var(--brick); }
+  .report-table{ width:100%; border-collapse:collapse; margin-top:12px; }
+  .report-table th, .report-table td{ text-align:left; padding:6px 8px; font-size:12px; border-bottom:1px solid var(--line); }
+  .report-total{ font-weight:800; font-size:16px; text-align:right; margin-top:10px; color:var(--brick); }
+
+  .toast{ position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--ink); color:var(--ivory); padding:10px 20px; border-radius:999px; font-size:13px; font-weight:700; opacity:0; pointer-events:none; transition:opacity .2s; z-index:200; }
+  .toast.show{ opacity:1; }
+
+  #print-area{ display:none; }
+  @media print{
+    body *{ visibility:hidden; }
+    #print-area, #print-area *{ visibility:visible; }
+    #print-area{ display:block !important; position:absolute; top:0; left:0; width:100%; padding:20px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-box">
+    <h1 id="login-shop-name">Админ-панель</h1>
+    <p>Введите пароль для входа</p>
+    <input type="password" id="password-input" placeholder="Пароль" onkeydown="if(event.key==='Enter')login()">
+    <div class="remember-row">
+      <input type="checkbox" id="remember-checkbox" checked>
+      <label for="remember-checkbox">Запомнить меня на этом устройстве</label>
+    </div>
+    <button class="btn" onclick="login()">Войти</button>
+    <div class="error-msg" id="login-error">Неверный пароль. Попробуйте снова.</div>
+  </div>
+</div>
+
+<div id="app">
+  <header>
+    <div class="title" id="header-shop-name">Админ-панель</div>
+    <div class="header-controls">
+      <span class="shift-pill" id="shift-pill">Смена: —</span>
+      <button class="icon-btn" onclick="setLayout('split')" id="layout-split-btn">⊞ Разделить</button>
+      <button class="icon-btn" onclick="setLayout('order')" id="layout-order-btn">🛒 Заказ крупнее</button>
+      <button class="icon-btn" onclick="setLayout('admin')" id="layout-admin-btn">⚙️ Панель крупнее</button>
+      <button class="icon-btn" onclick="toggleFullscreen()">⛶ Во весь экран</button>
+      <button class="icon-btn" onclick="logout()">Выйти</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="workspace layout-split" id="workspace">
+
+      <!-- ============ ЛЕВАЯ ЧАСТЬ: ПРИЁМ ЗАКАЗА (POS) ============ -->
+      <div class="pane order-pane">
+        <div class="pane-title">Приём заказа</div>
+        <div id="pos-order-taking"></div>
+        <div id="pos-receipt" style="display:none"></div>
+      </div>
+
+      <!-- ============ ПРАВАЯ ЧАСТЬ: УПРАВЛЕНИЕ ============ -->
+      <div class="pane admin-pane">
+        <div class="subtabs">
+          <button class="subtab-btn active" id="tab-orders" onclick="switchAdminTab('orders')">Заказы<span class="badge" id="orders-badge" style="display:none"></span></button>
+          <button class="subtab-btn" id="tab-menu" onclick="switchAdminTab('menu')">Меню</button>
+          <button class="subtab-btn" id="tab-settings" onclick="switchAdminTab('settings')">Настройки</button>
+          <button class="subtab-btn" id="tab-shift" onclick="switchAdminTab('shift')">Смена / Чек</button>
+        </div>
+        <div id="orders-view"></div>
+        <div id="menu-view" style="display:none"></div>
+        <div id="settings-view" style="display:none"></div>
+        <div id="shift-view" style="display:none"></div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+<div id="print-area"></div>
+
+<script>
+let adminPassword = '';
+let categoriesCache = [];
+let paymentCardsCache = [];
+let dishesCache = [];
+let lastSeenOrderId = null;
+let pollTimer = null;
+let currentShift = null;
+let currentShiftReport = null;
+
+function esc(s){
+  return String(s==null?'':s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function money(n){ return Number(n).toLocaleString('ru-RU') + ' ' + (window._currency || '₽'); }
+function authHeaders(json=true){
+  const h = {'X-Admin-Password': adminPassword};
+  if(json) h['Content-Type'] = 'application/json';
+  return h;
+}
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 1800);
+}
+
+/* ================= LOGIN (+ Запомнить меня) ================= */
+function login(auto){
+  const pw = auto || document.getElementById('password-input').value;
+  fetch('/api/admin/login', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({password: pw})
+  }).then(r=>r.json()).then(data=>{
+    if(data.ok){
+      adminPassword = pw;
+      const remember = document.getElementById('remember-checkbox').checked;
+      if(remember) localStorage.setItem('admin_pw', pw); else localStorage.removeItem('admin_pw');
+      document.getElementById('login-screen').style.display='none';
+      document.getElementById('app').style.display='block';
+      if('Notification' in window && Notification.permission==='default') Notification.requestPermission();
+      applyBranding();
+      initWorkspace();
+    } else if(!auto){
+      document.getElementById('login-error').style.display='block';
+    }
+  });
+}
+function logout(){
+  localStorage.removeItem('admin_pw');
+  location.reload();
+}
+(function tryAutoLogin(){
+  const saved = localStorage.getItem('admin_pw');
+  if(saved) login(saved);
+})();
+
+/* ================= BRENDING ================= */
+function applyBranding(){
+  fetch('/api/settings').then(r=>r.json()).then(s=>{
+    const name = s.shop_name || 'Ресторан';
+    document.getElementById('login-shop-name').textContent = name;
+    document.getElementById('header-shop-name').textContent = name;
+    document.title = 'Админ-панель — ' + name;
+    window._currency = s.currency_symbol || '₽';
+    const root = document.documentElement.style;
+    if(s.color_ink) root.setProperty('--ink', s.color_ink);
+    if(s.color_ivory) root.setProperty('--ivory', s.color_ivory);
+    if(s.color_saffron) root.setProperty('--saffron', s.color_saffron);
+    if(s.color_brick) root.setProperty('--brick', s.color_brick);
+    if(s.color_charcoal) root.setProperty('--charcoal', s.color_charcoal);
+  });
+}
+applyBranding();
+
+/* ================= LAYOUT (разделить / развернуть) ================= */
+function setLayout(mode){
+  const ws = document.getElementById('workspace');
+  ws.className = 'workspace layout-' + mode;
+  localStorage.setItem('admin_layout', mode);
+  ['split','order','admin'].forEach(m=>{
+    document.getElementById(`layout-${m}-btn`).classList.toggle('active', m===mode);
+  });
+}
+function toggleFullscreen(){
+  if(!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{});
+  else document.exitFullscreen();
+}
+
+/* ================= ОВОЗ (ting-ting-ting x2) ================= */
+function getVolume(){
+  const v = parseFloat(localStorage.getItem('admin_notif_volume'));
+  return isNaN(v) ? 0.6 : v;
+}
+function playNewOrderSound(){
+  try{
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    const vol = getVolume();
+    const pattern = [0, 0.22, 0.44, 0.75, 0.97, 1.19]; // ting-ting-ting  ting-ting-ting
+    pattern.forEach((offset)=>{
+      const o = ctx.createOscillator(); const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.type='sine'; o.frequency.value = 1000;
+      const start = ctx.currentTime + offset;
+      g.gain.setValueAtTime(0.0001, start);
+      g.gain.exponentialRampToValueAtTime(Math.max(vol,0.0001), start+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, start+0.18);
+      o.start(start); o.stop(start+0.2);
+    });
+  }catch(e){ console.error('audio error', e); }
+}
+
+/* ================= НОВЫЕ ЗАКАЗЫ: ОПРОС + УВЕДОМЛЕНИЯ ================= */
+function startOrderPolling(){
+  fetch('/api/admin/orders/peek', {headers: authHeaders(false)})
+    .then(r=>r.json()).then(d=>{ lastSeenOrderId = d.last_id || 0; });
+  if(pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(()=>{
+    fetch('/api/admin/orders/peek', {headers: authHeaders(false)})
+      .then(r=>r.json()).then(d=>{
+        if(lastSeenOrderId!==null && d.last_id > lastSeenOrderId){
+          const newCount = d.last_id - lastSeenOrderId;
+          playNewOrderSound();
+          showToast(`🆕 Новый заказ! (${newCount})`);
+          const badge = document.getElementById('orders-badge');
+          badge.style.display='inline-block'; badge.textContent = newCount;
+          if('Notification' in window && Notification.permission==='granted'){
+            new Notification('Новый заказ!', {body:'Перейдите во вкладку «Заказы».'});
+          }
+          lastSeenOrderId = d.last_id;
+          if(document.getElementById('orders-view').style.display!=='none') loadOrders();
+        }
+      });
+  }, 8000);
+}
+
+/* ================= ИНИЦИАЛИЗАЦИЯ РАБОЧЕЙ ОБЛАСТИ ================= */
+function initWorkspace(){
+  const savedLayout = localStorage.getItem('admin_layout') || 'split';
+  setLayout(savedLayout);
+  loadShiftStatus();
+  loadPosData();
+  loadOrders();
+  startOrderPolling();
+}
+
+/* ================= СМЕНА (шапка) ================= */
+function loadShiftStatus(){
+  fetch('/api/admin/shift/current', {headers: authHeaders(false)}).then(r=>r.json()).then(shift=>{
+    currentShift = shift;
+    const pill = document.getElementById('shift-pill');
+    if(shift){ pill.textContent = 'Смена открыта с ' + shift.started_at; pill.classList.add('on'); }
+    else { pill.textContent = 'Смена не начата'; pill.classList.remove('on'); }
+  });
+}
+
+/* ============================================================
+   POS: ПРИЁМ ЗАКАЗА (левая панель)
+============================================================ */
+let posCart = {};
+let posActiveFilter = 'all';
+let posSelectedPayment = 'cash';
+
+function loadPosData(){
+  Promise.all([
+    fetch('/api/menu').then(r=>r.json()),
+    fetch('/api/categories').then(r=>r.json()),
+    fetch('/api/payment-cards').then(r=>r.json())
+  ]).then(([dishes, cats, cards])=>{
+    dishesCache = dishes; categoriesCache = cats; paymentCardsCache = cards;
+    if(paymentCardsCache.length) posSelectedPayment = String(paymentCardsCache[0].id);
+    renderPosOrderTaking();
+  });
+}
+
+function renderPosOrderTaking(){
+  const wrap = document.getElementById('pos-order-taking');
+  const filterBtns = `<button class="filter-pill ${posActiveFilter==='all'?'active':''}" onclick="posSelectFilter('all')">Все</button>` +
+    categoriesCache.map(c=>`<button class="filter-pill ${posActiveFilter===c.key?'active':''}" onclick="posSelectFilter('${c.key}')">${esc(c.ru_label||c.uz_label)}</button>`).join('');
+
+  const list = posActiveFilter==='all' ? dishesCache : dishesCache.filter(d=>d.cat===posActiveFilter);
+  const dishesHtml = list.map(d=>`
+    <button type="button" class="pos-dish" onclick="posAddToCart(${d.id})">
+      <div class="pd-name">${esc(d.ru_name||d.uz_name)}</div>
+      <div class="pd-price">${money(d.price)}</div>
+    </button>
+  `).join('');
+
+  const cartEntries = Object.entries(posCart);
+  const cartHtml = !cartEntries.length ? `<div class="pos-empty">Корзина пуста</div>` :
+    cartEntries.map(([id,qty])=>{
+      const d = dishesCache.find(x=>String(x.id)===String(id));
+      if(!d) return '';
+      return `<div class="pos-cart-item">
+        <span>${esc(d.ru_name||d.uz_name)}</span>
+        <div class="qty-stepper"><button onclick="posChangeQty(${id},-1)">−</button><span>${qty}</span><button onclick="posChangeQty(${id},1)">+</button></div>
+      </div>`;
+    }).join('');
+
+  const total = cartEntries.reduce((sum,[id,qty])=>{
+    const d = dishesCache.find(x=>String(x.id)===String(id));
+    return sum + (d?d.price*qty:0);
+  }, 0);
+
+  const cardBtns = paymentCardsCache.map(c=>`<button type="button" class="pay-pill ${posSelectedPayment===String(c.id)?'active':''}" onclick="posSelectPayment('${c.id}')">💳 ${esc(c.name)}</button>`).join('');
+  const cashBtn = `<button type="button" class="pay-pill ${posSelectedPayment==='cash'?'active':''}" onclick="posSelectPayment('cash')">💵 Наличные</button>`;
+
+  wrap.innerHTML = `
+    <div class="pos-layout">
+      <div>
+        <div class="filters">${filterBtns}</div>
+        <div class="pos-dish-grid">${dishesHtml}</div>
+      </div>
+      <div class="pos-cart-box">
+        <div>${cartHtml}</div>
+        <div class="pos-total-row"><span>Итого:</span><span>${money(total)}</span></div>
+        <input id="pos-name" placeholder="Имя клиента (необязательно)">
+        <input id="pos-table" placeholder="Стол / адрес (необязательно)">
+        <div class="pay-options">${cardBtns}${cashBtn}</div>
+        <button class="submit-btn" onclick="posSubmitOrder()" ${!cartEntries.length?'disabled':''}>Оформить заказ</button>
+      </div>
+    </div>
+  `;
+}
+
+function posSelectFilter(key){ posActiveFilter = key; renderPosOrderTaking(); }
+function posSelectPayment(method){ posSelectedPayment = method; renderPosOrderTaking(); }
+
+function posAddToCart(id){
+  posCart[id] = (posCart[id]||0) + 1;
+  renderPosOrderTaking();
+}
+function posChangeQty(id, delta){
+  const cur = posCart[id] || 0;
+  const next = Math.max(0, cur+delta);
+  if(next===0) delete posCart[id]; else posCart[id] = next;
+  renderPosOrderTaking();
+}
+
+function posGetSessionId(){
+  let sid = localStorage.getItem('pos_session_id');
+  if(!sid){ sid = 'pos_' + Date.now(); localStorage.setItem('pos_session_id', sid); }
+  return sid;
+}
+
+function posSubmitOrder(){
+  const items = Object.entries(posCart).map(([id,qty])=>{
+    const d = dishesCache.find(x=>String(x.id)===String(id));
+    return { name: d.ru_name||d.uz_name, qty, price: d.price, subtotal: d.price*qty };
+  });
+  if(!items.length) return;
+  const total = items.reduce((s,it)=>s+it.subtotal,0);
+  const name = document.getElementById('pos-name').value.trim() || 'Клиент';
+  const table = document.getElementById('pos-table').value.trim();
+
+  fetch('/api/order', {
+    method:'POST', headers: authHeaders(),
+    body: JSON.stringify({
+      session_id: posGetSessionId(), customer_name:name, phone:'-', table_or_address: table,
+      payment_method: posSelectedPayment, payment_status:'kutilmoqda', items, total
+    })
+  }).then(r=>r.json()).then(d=>{
+    if(d.ok){
+      renderPosReceipt(d.id, items, total, posSelectedPayment);
+      posCart = {};
+      renderPosOrderTaking();
+      loadOrders();
+      loadShiftStatus();
+    }
+  });
+}
+
+function renderPosReceipt(orderId, items, total, paymentMethod){
+  document.getElementById('pos-order-taking').style.display='none';
+  const box = document.getElementById('pos-receipt');
+  box.style.display='block';
+  const card = paymentCardsCache.find(c=>String(c.id)===String(paymentMethod));
+  const payLabel = paymentMethod==='cash' ? 'Наличные' : ('Карта: ' + (card?card.name:paymentMethod));
+  box.innerHTML = `
+    <div class="receipt-box">
+      <div style="font-weight:800; margin-bottom:8px;">Заказ №${orderId}</div>
+      ${items.map(it=>`<div class="r-item"><span>${esc(it.name)} × ${it.qty}</span><span>${money(it.subtotal)}</span></div>`).join('')}
+      <div class="receipt-total">${money(total)}</div>
+      <div style="font-size:12px; color:#8a7a68;">Оплата: ${payLabel}</div>
+    </div>
+    <button class="paid-btn" onclick="posMarkPaid(${orderId})">✅ Оплачено</button>
+    <button class="ghost-btn" onclick="posPrintReceipt(${orderId})">🖨️ Печать чека</button>
+    <button class="ghost-btn" onclick="posNewOrder()">➕ Новый заказ</button>
+  `;
+}
+
+function posMarkPaid(orderId){
+  fetch(`/api/admin/orders/${orderId}/payment-status`, {
+    method:'POST', headers: authHeaders(), body: JSON.stringify({payment_status:'tolandi'})
+  }).then(()=>{ showToast('Отмечено как оплачено ✅'); loadOrders(); });
+}
+
+function posPrintReceipt(orderId){
+  const receiptHtml = document.querySelector('#pos-receipt .receipt-box').outerHTML;
+  document.getElementById('print-area').innerHTML = `<h2>Чек №${orderId}</h2>` + receiptHtml;
+  window.print();
+}
+
+function posNewOrder(){
+  document.getElementById('pos-receipt').style.display='none';
+  document.getElementById('pos-receipt').innerHTML='';
+  document.getElementById('pos-order-taking').style.display='block';
+}
+
+/* ============================================================
+   АДМИН ВКЛАДКИ (правая панель)
+============================================================ */
+function switchAdminTab(tab){
+  ['orders','menu','settings','shift'].forEach(t=>{
+    document.getElementById(`tab-${t}`).classList.toggle('active', t===tab);
+    document.getElementById(`${t}-view`).style.display = t===tab ? 'block':'none';
+  });
+  if(tab==='orders'){ loadOrders(); document.getElementById('orders-badge').style.display='none'; }
+  if(tab==='menu') loadDishesAndCategories();
+  if(tab==='settings') loadAllSettings();
+  if(tab==='shift') loadShiftView();
+}
+
+/* ---- Заказы ---- */
+function loadOrders(){
+  Promise.all([
+    fetch('/api/admin/orders', {headers: authHeaders(false)}).then(r=>r.json()),
+    fetch('/api/payment-cards').then(r=>r.json())
+  ]).then(([orders, cards])=>{
+    paymentCardsCache = cards;
+    renderOrders(orders);
+  });
+}
+
+function paymentLabel(method){
+  if(method==='cash') return '💵 Наличные';
+  const card = paymentCardsCache.find(c=>String(c.id)===String(method));
+  return card ? `💳 ${card.name}` : `💳 ${method}`;
+}
+
+function renderOrders(orders){
+  const wrap = document.getElementById('orders-view');
+  if(!orders.length){ wrap.innerHTML = `<div class="empty-state">Заказов пока нет.</div>`; return; }
+  wrap.innerHTML = orders.map(o=>`
+    <div class="order-card">
+      <div class="order-top"><span class="name">${esc(o.customer_name)}</span><span class="time">${esc(o.created_at)}</span></div>
+      <div class="order-meta">📍 ${esc(o.table_or_address || '-')} | ${paymentLabel(o.payment_method)}</div>
+      <div class="order-items">${o.items.map(it=>`<div><span>${esc(it.name)} × ${esc(it.qty)}</span><span>${money(it.subtotal)}</span></div>`).join('')}</div>
+      ${o.comment ? `<div style="font-size:11px;color:#8a7a68;margin:4px 0;">📝 ${esc(o.comment)}</div>` : ''}
+      <div class="order-total">${money(o.total)}</div>
+      <div class="status-row">
+        <select onchange="updateStatus(${o.id}, this.value)">
+          <option value="yangi" ${o.status==='yangi'?'selected':''}>🆕 Новый</option>
+          <option value="tayyorlanmoqda" ${o.status==='tayyorlanmoqda'?'selected':''}>👨‍🍳 Готовится</option>
+          <option value="tayyor" ${o.status==='tayyor'?'selected':''}>✅ Готово</option>
+          <option value="yetkazildi" ${o.status==='yetkazildi'?'selected':''}>🚗 Доставлено</option>
+        </select>
+        <span class="pay-badge ${o.payment_status==='tolandi'?'paid':'pending'}">${o.payment_status==='tolandi'?'✅ Оплачено':'⏳ Ожидает'}</span>
+        <button class="mini-btn" onclick="togglePayment(${o.id}, '${o.payment_status}')">Изменить</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function updateStatus(id, status){
+  fetch(`/api/admin/orders/${id}/status`, { method:'POST', headers: authHeaders(), body: JSON.stringify({status}) })
+    .then(()=> showToast('Статус обновлён'));
+}
+function togglePayment(id, current){
+  const next = current==='tolandi' ? 'kutilmoqda' : 'tolandi';
+  fetch(`/api/admin/orders/${id}/payment-status`, { method:'POST', headers: authHeaders(), body: JSON.stringify({payment_status: next}) })
+    .then(()=>{ showToast('Статус оплаты обновлён'); loadOrders(); });
+}
+
+/* ---- Меню ---- */
+function loadDishesAndCategories(){
+  Promise.all([
+    fetch('/api/menu').then(r=>r.json()),
+    fetch('/api/categories').then(r=>r.json())
+  ]).then(([dishes, cats])=>{
+    dishesCache = dishes; categoriesCache = cats;
+    renderDishes();
+  });
+}
+
+function renderDishes(){
+  const wrap = document.getElementById('menu-view');
+  wrap.innerHTML = dishesCache.map(d => dishRowHtml(d)).join('') +
+    `<button class="add-btn" onclick="addDish()">+ Добавить блюдо</button>`;
+}
+function catOptionsHtml(selected){
+  return categoriesCache.map(c=>`<option value="${esc(c.key)}" ${c.key===selected?'selected':''}>${esc(c.ru_label||c.uz_label)}</option>`).join('');
+}
+function dishRowHtml(d){
+  return `
+    <div class="dish-row" id="dish-${d.id}">
+      <div class="field"><label>Название (UZ)</label><input value="${esc(d.uz_name)}" data-f="uz_name"></div>
+      <div class="field"><label>Название (RU)</label><input value="${esc(d.ru_name)}" data-f="ru_name"></div>
+      <div class="field"><label>Название (TJ)</label><input value="${esc(d.tj_name)}" data-f="tj_name"></div>
+      <div class="field"><label>Категория</label><select data-f="cat">${catOptionsHtml(d.cat)}</select></div>
+      <div class="field"><label>Описание (UZ)</label><textarea rows="2" data-f="uz_desc">${esc(d.uz_desc)}</textarea></div>
+      <div class="field"><label>Описание (RU)</label><textarea rows="2" data-f="ru_desc">${esc(d.ru_desc)}</textarea></div>
+      <div class="field"><label>Описание (TJ)</label><textarea rows="2" data-f="tj_desc">${esc(d.tj_desc)}</textarea></div>
+      <div class="field"><label>Цена</label><input type="number" value="${d.price}" data-f="price"></div>
+      <div class="field" style="grid-column:1/-1">
+        <label>Изображение</label>
+        <div class="img-mode-tabs">
+          <button type="button" class="active" onclick="setImgMode(${d.id},'url',this)">По ссылке</button>
+          <button type="button" onclick="setImgMode(${d.id},'upload',this)">Загрузить файл</button>
+        </div>
+        <input value="${esc(d.img)}" data-f="img" id="img-url-${d.id}" placeholder="https://...">
+        <input type="file" accept="image/*" id="img-file-${d.id}" style="display:none" onchange="uploadDishImage(${d.id}, this)">
+        ${d.img ? `<img src="${esc(d.img)}" class="img-preview" id="img-preview-${d.id}">` : `<img src="" class="img-preview" id="img-preview-${d.id}" style="display:none">`}
+        <div class="upload-status" id="img-status-${d.id}"></div>
+      </div>
+      <div class="row-actions">
+        <button class="save-btn" onclick="saveDish(${d.id})">Сохранить</button>
+        <button class="delete-btn" onclick="deleteDish(${d.id})">Удалить</button>
+      </div>
+    </div>
+  `;
+}
+function setImgMode(id, mode, btn){
+  const wrap = btn.parentElement;
+  [...wrap.children].forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(`img-url-${id}`).style.display = mode==='url' ? 'block':'none';
+  document.getElementById(`img-file-${id}`).style.display = mode==='upload' ? 'block':'none';
+  if(mode==='upload') document.getElementById(`img-file-${id}`).click();
+}
+function uploadDishImage(id, input){
+  const file = input.files[0];
+  if(!file) return;
+  const statusEl = document.getElementById(`img-status-${id}`);
+  statusEl.textContent = 'Загрузка...';
+  const fd = new FormData(); fd.append('file', file);
+  fetch('/api/admin/upload-image', { method:'POST', headers: authHeaders(false), body: fd })
+    .then(r=>r.json()).then(data=>{
+      if(data.ok){
+        document.getElementById(`img-url-${id}`).value = data.url;
+        const prev = document.getElementById(`img-preview-${id}`);
+        prev.src = data.url; prev.style.display='block';
+        statusEl.textContent = 'Загружено ✅ — нажмите «Сохранить»';
+      } else statusEl.textContent = 'Ошибка: ' + (data.error||'');
+    }).catch(()=>{ statusEl.textContent = 'Ошибка загрузки'; });
+}
+function collectFields(rowId){
+  const row = document.getElementById(rowId);
+  const out = {};
+  row.querySelectorAll('[data-f]').forEach(el=>{
+    out[el.getAttribute('data-f')] = (el.tagName==='INPUT' && el.type==='number') ? Number(el.value) : el.value;
+  });
+  return out;
+}
+function saveDish(id){
+  fetch(`/api/admin/dishes/${id}`, { method:'PUT', headers: authHeaders(), body: JSON.stringify(collectFields(`dish-${id}`)) })
+    .then(()=> showToast('Блюдо сохранено ✅'));
+}
+function deleteDish(id){
+  if(!confirm('Удалить это блюдо?')) return;
+  fetch(`/api/admin/dishes/${id}`, {method:'DELETE', headers: authHeaders(false)})
+    .then(()=>{ showToast('Блюдо удалено'); loadDishesAndCategories(); });
+}
+function addDish(){
+  const firstCat = categoriesCache[0] ? categoriesCache[0].key : 'main';
+  fetch('/api/admin/dishes', {
+    method:'POST', headers: authHeaders(),
+    body: JSON.stringify({cat:firstCat, price:0, uz_name:'Yangi taom', ru_name:'Новое блюдо', tj_name:'Хӯроки нав', uz_desc:'', ru_desc:'', tj_desc:'', img:''})
+  }).then(()=>{ showToast('Блюдо добавлено'); loadDishesAndCategories(); });
+}
+
+/* ---- Настройки ---- */
+function loadAllSettings(){
+  Promise.all([
+    fetch('/api/admin/settings', {headers: authHeaders(false)}).then(r=>r.json()),
+    fetch('/api/payment-cards').then(r=>r.json()),
+    fetch('/api/categories').then(r=>r.json())
+  ]).then(([settings, cards, cats])=>{
+    paymentCardsCache = cards; categoriesCache = cats;
+    renderSettingsView(settings);
+  });
+}
+function renderSettingsView(s){
+  const wrap = document.getElementById('settings-view');
+  wrap.innerHTML = `
+    <div class="pane-title" style="margin-top:0">Название и текст</div>
+    <div class="settings-card" id="brand-form">
+      <div class="field"><label>Название магазина</label><input value="${esc(s.shop_name||'')}" data-f="shop_name"></div>
+      <div class="field"><label>Подзаголовок</label><input value="${esc(s.tagline||'')}" data-f="tagline"></div>
+      <div class="field"><label>Символ валюты</label><input value="${esc(s.currency_symbol||'')}" data-f="currency_symbol" placeholder="₽"></div>
+      <div class="row-actions"><button class="save-btn" onclick="saveBrand()">Сохранить</button></div>
+    </div>
+
+    <div class="pane-title">Цвета</div>
+    <div class="settings-card" id="color-form">
+      <div class="field color-field"><label style="width:100%">Основной</label><input type="color" value="${s.color_ink||'#1E2A47'}" data-c="color_ink"><span>шапка, кнопки</span></div>
+      <div class="field color-field"><label style="width:100%">Фон</label><input type="color" value="${s.color_ivory||'#FAF3E7'}" data-c="color_ivory"><span>фон сайта</span></div>
+      <div class="field color-field"><label style="width:100%">Акцент</label><input type="color" value="${s.color_saffron||'#D8A72E'}" data-c="color_saffron"><span>кнопки, метки</span></div>
+      <div class="field color-field"><label style="width:100%">Красный</label><input type="color" value="${s.color_brick||'#A13D2C'}" data-c="color_brick"><span>цена, акценты</span></div>
+      <div class="field color-field"><label style="width:100%">Текст</label><input type="color" value="${s.color_charcoal||'#2B2118'}" data-c="color_charcoal"><span>основной текст</span></div>
+      <div class="row-actions"><button class="save-btn" onclick="saveColors()">Сохранить и применить</button></div>
+    </div>
+
+    <div class="pane-title">Громкость уведомлений</div>
+    <div class="settings-card">
+      <div class="field" style="grid-column:1/-1">
+        <label>Звук нового заказа</label>
+        <input type="range" min="0" max="1" step="0.05" id="volume-slider" value="${getVolume()}" oninput="setVolume(this.value)">
+      </div>
+      <div class="row-actions"><button class="save-btn" onclick="playNewOrderSound()">🔊 Проверить звук</button></div>
+    </div>
+
+    <div class="pane-title">Карты для оплаты</div>
+    <div id="cards-list">${paymentCardsCache.map(c=>cardRowHtml(c)).join('')}</div>
+    <button class="add-btn" onclick="addCard()">+ Добавить карту</button>
+
+    <div class="pane-title">Категории меню (фильтры)</div>
+    <div id="categories-list">${categoriesCache.map(c=>categoryRowHtml(c)).join('')}</div>
+    <button class="add-btn" onclick="addCategory()">+ Добавить категорию</button>
+  `;
+}
+function setVolume(v){ localStorage.setItem('admin_notif_volume', v); }
+function saveBrand(){
+  const row = document.getElementById('brand-form');
+  const out = {}; row.querySelectorAll('[data-f]').forEach(el=>{ out[el.getAttribute('data-f')] = el.value; });
+  fetch('/api/admin/settings', { method:'PUT', headers: authHeaders(), body: JSON.stringify(out) })
+    .then(()=>{ showToast('Сохранено ✅'); applyBranding(); loadPosData(); });
+}
+function saveColors(){
+  const row = document.getElementById('color-form');
+  const out = {}; row.querySelectorAll('[data-c]').forEach(el=>{ out[el.getAttribute('data-c')] = el.value; });
+  fetch('/api/admin/settings', { method:'PUT', headers: authHeaders(), body: JSON.stringify(out) })
+    .then(()=>{ showToast('Цвета сохранены ✅'); applyBranding(); });
+}
+function cardRowHtml(c){
+  return `<div class="list-row" id="card-${c.id}">
+    <input value="${esc(c.name)}" data-f="name" placeholder="Название карты">
+    <input value="${esc(c.number)}" data-f="number" placeholder="Номер карты">
+    <button class="mini-btn" onclick="saveCard(${c.id})">Сохранить</button>
+    <button class="mini-btn danger" onclick="deleteCard(${c.id})">Удалить</button>
+  </div>`;
+}
+function addCard(){
+  fetch('/api/admin/payment-cards', { method:'POST', headers: authHeaders(), body: JSON.stringify({name:'Новая карта', number:''}) })
+    .then(()=>{ showToast('Карта добавлена'); loadAllSettings(); });
+}
+function saveCard(id){
+  const row = document.getElementById(`card-${id}`);
+  const out = {}; row.querySelectorAll('[data-f]').forEach(el=>{ out[el.getAttribute('data-f')] = el.value; });
+  fetch(`/api/admin/payment-cards/${id}`, { method:'PUT', headers: authHeaders(), body: JSON.stringify(out) })
+    .then(()=>{ showToast('Карта сохранена ✅'); loadPosData(); });
+}
+function deleteCard(id){
+  if(!confirm('Удалить эту карту?')) return;
+  fetch(`/api/admin/payment-cards/${id}`, { method:'DELETE', headers: authHeaders(false) })
+    .then(()=>{ showToast('Карта удалена'); loadAllSettings(); loadPosData(); });
+}
+function categoryRowHtml(c){
+  return `<div class="list-row" id="cat-${c.id}">
+    <input value="${esc(c.uz_label)}" data-f="uz_label" placeholder="Название UZ">
+    <input value="${esc(c.ru_label)}" data-f="ru_label" placeholder="Название RU">
+    <input value="${esc(c.tj_label)}" data-f="tj_label" placeholder="Название TJ">
+    <button class="mini-btn" onclick="saveCategory(${c.id})">Сохранить</button>
+    <button class="mini-btn danger" onclick="deleteCategory(${c.id})">Удалить</button>
+  </div>`;
+}
+function addCategory(){
+  const ru = prompt('Название новой категории (на русском):');
+  if(!ru) return;
+  fetch('/api/admin/categories', {
+    method:'POST', headers: authHeaders(),
+    body: JSON.stringify({key: ru, uz_label: ru, ru_label: ru, tj_label: ru, sort_order: 99})
+  }).then(r=>r.json()).then(d=>{
+    if(d.ok){ showToast('Категория добавлена'); loadAllSettings(); loadPosData(); }
+    else showToast('Ошибка: ' + (d.error||''));
+  });
+}
+function saveCategory(id){
+  const row = document.getElementById(`cat-${id}`);
+  const out = {}; row.querySelectorAll('[data-f]').forEach(el=>{ out[el.getAttribute('data-f')] = el.value; });
+  fetch(`/api/admin/categories/${id}`, { method:'PUT', headers: authHeaders(), body: JSON.stringify(out) })
+    .then(()=>{ showToast('Категория сохранена ✅'); loadPosData(); });
+}
+function deleteCategory(id){
+  if(!confirm('Удалить эту категорию?')) return;
+  fetch(`/api/admin/categories/${id}`, { method:'DELETE', headers: authHeaders(false) })
+    .then(r=>r.json()).then(d=>{
+      if(d.ok){ showToast('Категория удалена'); loadAllSettings(); loadPosData(); }
+      else showToast('Ошибка: ' + (d.error||''));
+    });
+}
+
+/* ---- Смена / Чек ---- */
+function loadShiftView(){
+  fetch('/api/admin/shift/current', {headers: authHeaders(false)}).then(r=>r.json()).then(shift=>{
+    currentShift = shift;
+    renderShiftView(shift, null);
+  });
+}
+function renderShiftView(shift, report){
+  const wrap = document.getElementById('shift-view');
+  let html = `<div class="shift-box">`;
+  if(shift){
+    html += `<p style="margin-bottom:14px;">Смена начата: <b>${esc(shift.started_at)}</b></p>
+      <button class="big-btn end" onclick="endShiftNow()">Закончить смену</button>`;
+  } else {
+    html += `<p style="margin-bottom:14px;">Смена ещё не начата.</p>
+      <button class="big-btn" onclick="startShiftNow()">Начать работу</button>`;
+  }
+  html += `</div>`;
+  if(report){
+    currentShiftReport = report;
+    html += `
+      <table class="report-table">
+        <tr><th>Блюдо</th><th>Кол-во</th><th>Сумма</th></tr>
+        ${report.items.map(it=>`<tr><td>${esc(it.name)}</td><td>${it.qty}</td><td>${money(it.total)}</td></tr>`).join('')}
+      </table>
+      <div class="report-total">Итого за смену: ${money(report.grand_total)} (${report.order_count} заказ.)</div>
+      <button class="ghost-btn" style="margin-top:10px;" onclick="printShiftReport()">🖨️ Печать чека смены</button>
+    `;
+  }
+  wrap.innerHTML = html;
+}
+function startShiftNow(){
+  fetch('/api/admin/shift/start', {method:'POST', headers: authHeaders(false)})
+    .then(r=>r.json()).then(shift=>{ currentShift = shift; loadShiftStatus(); renderShiftView(shift, null); showToast('Смена начата ✅'); });
+}
+function endShiftNow(){
+  if(!confirm('Закончить смену и сформировать отчёт?')) return;
+  fetch('/api/admin/shift/end', {method:'POST', headers: authHeaders(false)})
+    .then(r=>r.json()).then(d=>{
+      if(d.ok){
+        currentShift = null; loadShiftStatus();
+        renderShiftView(d.shift, d.report);
+        showToast('Смена закончена ✅');
+      }
+    });
+}
+function printShiftReport(){
+  const shift = currentShift || {};
+  const report = currentShiftReport;
+  if(!report) return;
+  const area = document.getElementById('print-area');
+  area.innerHTML = `
+    <h2>Отчёт за смену</h2>
+    <p>Начало: ${esc(shift.started_at||'')} — Конец: ${esc(shift.ended_at||'')}</p>
+    <table style="width:100%; border-collapse:collapse;">
+      <tr><th style="text-align:left">Блюдо</th><th style="text-align:left">Кол-во</th><th style="text-align:left">Сумма</th></tr>
+      ${report.items.map(it=>`<tr><td>${esc(it.name)}</td><td>${it.qty}</td><td>${money(it.total)}</td></tr>`).join('')}
+    </table>
+    <h3>Итого: ${money(report.grand_total)}</h3>
+  `;
+  window.print();
+}
+</script>
+</body>
+</html>
